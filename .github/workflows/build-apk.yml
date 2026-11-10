@@ -38,6 +38,7 @@ jobs:
       - name: Accept Android SDK licenses
         shell: bash
         run: |
+          set -o pipefail
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
             -type f -name sdkmanager | sort -V | tail -n 1)
 
@@ -46,8 +47,8 @@ jobs:
             exit 1
           fi
 
-          yes | "$SDKMANAGER" \
-            --sdk_root="$ANDROID_HOME" --licenses
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses
+
 
       # 5. Menginstal Android SDK 35
       - name: Install Android SDK
