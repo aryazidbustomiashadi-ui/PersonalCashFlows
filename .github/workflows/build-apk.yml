@@ -11,40 +11,76 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
     steps:
+      # 1. Mengambil file dari repository GitHub
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Menyiapkan Java JDK 17
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses || true
-
-      - name: Install Android SDK
+      # 3. Memeriksa Android SDK Manager
+      - name: Check Android SDK
         run: |
-          sdkmanager --sdk_root="$ANDROID_HOME" \
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la "$ANDROID_HOME"
+          find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager
+
+      # 4. Menerima lisensi Android SDK
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -type f -name sdkmanager | sort -V | tail -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "SDK Manager tidak ditemukan!"
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" \
+            --sdk_root="$ANDROID_HOME" --licenses
+
+      # 5. Menginstal Android SDK 35
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" \
+            -type f -name sdkmanager | sort -V | tail -n 1)
+
+          "$SDKMANAGER" --sdk_root="$ANDROID_HOME" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
+      # 6. Mengekstrak file proyek
       - name: Extract project ZIP
         run: |
           unzip -o PersonalCashFlow_Android_Project.zip -d extracted
           cp -r extracted/PersonalCashFlow/. .
 
+      # 7. Menyiapkan Gradle
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
+      # 8. Membangun aplikasi Android
       - name: Build APK
         run: gradle assembleDebug
 
+      # 9. Menyimpan hasil APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: PersonalCashFlow-APK
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
